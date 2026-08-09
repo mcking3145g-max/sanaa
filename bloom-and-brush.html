@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom & Brush by Sanaa — Hand-Painted Tees & Fresh Blooms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Caveat:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#FBF4E9;
+    --canvas-dim:#F3EAD9;
+    --ink:#221E1B;
+    --poppy:#E63B2E;
+    --marigold:#F5A623;
+    --leaf:#4C7A3A;
+    --cobalt:#2857A6;
+    --blossom:#E85D9E;
+    --line: rgba(34,30,27,0.14);
+    --shadow: 0 10px 30px rgba(34,30,27,0.12);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  main,footer,.marquee-bar{position:relative; z-index:1;}
+  .scroll-progress{
+    position:fixed;
+    inset:0 auto auto 0;
+    width:var(--scroll-progress, 0%);
+    height:4px;
+    background:linear-gradient(90deg,var(--poppy),var(--marigold),var(--blossom),var(--cobalt));
+    box-shadow:0 2px 10px rgba(230,59,46,.45);
+    z-index:200;
+    pointer-events:none;
+    transition:width .08s linear;
+  }
+  .ambient-canvas{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .ambient-blob{
+    position:absolute;
+    width:34vw;
+    aspect-ratio:1;
+    border-radius:50%;
+    filter:blur(85px);
+    opacity:.12;
+    mix-blend-mode:multiply;
+    animation:ambientDrift 14s ease-in-out infinite alternate;
+  }
+  .ambient-blob.one{left:-10vw; top:8vh; background:var(--marigold);}
+  .ambient-blob.two{right:-12vw; top:42vh; background:var(--blossom); animation-delay:-5s; animation-duration:18s;}
+  .ambient-blob.three{left:30vw; bottom:-18vw; background:var(--cobalt); animation-delay:-9s; animation-duration:20s;}
+  .ambient-petal{
+    --sway:70px;
+    position:absolute;
+    left:var(--x);
+    top:110vh;
+    width:12px;
+    height:22px;
+    border-radius:80% 15% 80% 15%;
+    background:var(--petal-color);
+    opacity:.24;
+    animation:screenPetal var(--duration) linear infinite;
+    animation-delay:var(--delay);
+  }
+  img,svg{display:block;max-width:100%;}
+  h1,h2,h3{
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-weight:700;
+    line-height:1.05;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  a{color:inherit;text-decoration:none;}
+  .brush{font-family:'Caveat', cursive; font-weight:700;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+  }
+
+  /* ===== Paint blob shapes, the site's signature motif ===== */
+  .blob{ border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+  .blob-alt{ border-radius: 58% 42% 39% 61% / 55% 38% 62% 45%; }
+
+  /* ===== Top marquee ===== */
+  .marquee-bar{
+    background:var(--ink);
+    color:var(--canvas);
+    overflow:hidden;
+    white-space:nowrap;
+    padding:9px 0;
+    border-bottom:1px solid var(--ink);
+  }
+  .marquee-track{
+    display:inline-flex;
+    gap:2.5rem;
+    animation: scrollmq 26s linear infinite;
+    padding-left:2.5rem;
+  }
+  @media (prefers-reduced-motion: reduce){ .marquee-track{animation:none;} }
+  .marquee-track span{
+    font-size:0.8rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:0.6rem;
+  }
+  .marquee-track span::after{content:"•"; color:var(--marigold); font-size:1rem;}
+  @keyframes scrollmq{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+
+  /* ===== Nav ===== */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(251,244,233,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  nav.wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top:16px; padding-bottom:16px;
+  }
+  .logo{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:2rem;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .logo-copy{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
+  .logo-by{
+    font-family:'Work Sans',sans-serif;
+    font-size:0.62rem;
+    font-weight:700;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:rgba(34,30,27,0.55);
+  }
+  .logo .dot{
+    width:16px;height:16px;background:var(--poppy);
+    display:inline-block; flex:none;
+    animation:logoDot 3.2s ease-in-out infinite;
+  }
+  .nav-links{
+    display:flex; gap:2rem; list-style:none; margin:0; padding:0;
+  }
+  .nav-links a{
+    font-weight:600; font-size:0.95rem;
+    position:relative; padding-bottom:4px;
+  }
+  .nav-links a:focus-visible, .btn:focus-visible, a:focus-visible, button:focus-visible{
+    outline:3px solid var(--cobalt); outline-offset:3px; border-radius:2px;
+  }
+  .nav-links a::after{
+    content:""; position:absolute; left:0; right:0; bottom:-2px; height:6px;
+    background:var(--marigold); opacity:0; transform:scaleX(0.3); transform-origin:left;
+    transition:opacity .2s ease, transform .25s ease; z-index:-1;
+  }
+  .nav-links a:hover::after{opacity:0.55; transform:scaleX(1);}
+  .nav-cta{
+    display:flex; align-items:center; gap:14px;
+  }
+  .cart-link{
+    position:relative;
+    width:46px;
+    height:46px;
+    border:2px solid var(--ink);
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:var(--canvas);
+    transition:transform .22s ease, background .22s ease, color .22s ease;
+  }
+  .cart-link:hover{background:var(--ink); color:var(--canvas); transform:translateY(-3px) rotate(-4deg);}
+  .cart-link svg{width:20px; height:20px;}
+  .cart-count{
+    position:absolute;
+    top:-8px;
+    right:-7px;
+    min-width:23px;
+    height:23px;
+    padding:0 6px;
+    border-radius:20px;
+    display:grid;
+    place-items:center;
+    background:var(--poppy);
+    color:#fff;
+    border:2px solid var(--canvas);
+    font-size:.68rem;
+    font-weight:800;
+    transform:scale(0);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1.4);
+  }
+  .cart-count.visible{transform:scale(1);}
+  .cart-link.bump{animation:cartBump .55s cubic-bezier(.2,.8,.2,1.2);}
+  @keyframes cartBump{35%{transform:scale(1.18) rotate(8deg);} 70%{transform:scale(.92) rotate(-4deg);} 100%{transform:scale(1) rotate(0);}}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    font-weight:700; font-size:0.92rem;
+    padding:11px 22px;
+    background:var(--ink); color:var(--canvas);
+    border:2px solid var(--ink);
+    cursor:pointer;
+    --mag-x:0px;
+    --mag-y:0px;
+    position:relative;
+    overflow:hidden;
+    isolation:isolate;
+    transform:translate(var(--mag-x),var(--mag-y));
+    transition: transform .18s ease, background .18s ease, color .18s ease;
+    border-radius:40px 12px 40px 12px;
+  }
+  .btn::after{
+    content:"";
+    position:absolute;
+    inset:-60% auto -60% -35%;
+    width:28%;
+    background:rgba(255,255,255,.35);
+    transform:skewX(-22deg) translateX(-250%);
+    transition:transform .55s ease;
+    z-index:-1;
+  }
+  .btn:hover{ background:var(--poppy); border-color:var(--poppy); transform:translate(var(--mag-x),calc(var(--mag-y) - 2px)) rotate(-1deg); }
+  .btn:hover::after{transform:skewX(-22deg) translateX(650%);}
+  .btn-outline{
+    background:transparent; color:var(--ink);
+  }
+  .btn-outline:hover{ background:var(--ink); color:var(--canvas); }
+  .menu-toggle{ display:none; background:none; border:none; cursor:pointer; }
+  .menu-toggle svg{width:26px;height:26px;}
+
+  /* ===== Hero ===== */
+  .hero{
+    position:relative;
+    overflow:hidden;
+    padding:76px 0 60px;
+  }
+  .hero .wrap{
+    display:grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap:48px;
+    align-items:center;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:10px;
+    font-family:'Caveat', cursive; font-weight:700; font-size:1.35rem;
+    color:var(--poppy);
+    margin-bottom:6px;
+  }
+  .eyebrow svg{width:22px;height:22px;}
+  .hero h1{
+    font-size:clamp(2.6rem, 5.2vw, 4.4rem);
+    margin-bottom:22px;
+  }
+  .hero h1 em{
+    font-style:normal;
+    background:linear-gradient(180deg, transparent 62%, var(--marigold) 62%);
+    padding:0 2px;
+  }
+  .kinetic-title > span{
+    display:inline-block;
+    opacity:0;
+    transform:translateY(44px) rotate(2deg);
+    animation:titleRise .85s cubic-bezier(.18,.75,.2,1) forwards;
+  }
+  .kinetic-title > span:nth-child(1){animation-delay:.13s;}
+  .kinetic-title > span:nth-child(2){animation-delay:.25s;}
+  .kinetic-title > span:nth-child(3){animation-delay:.37s;}
+  .hero .eyebrow{opacity:0; animation:introRise .65s ease .05s forwards;}
+  .hero .lead{opacity:0; animation:introRise .7s ease .44s forwards;}
+  .hero .maker-intro{opacity:0; animation:introRise .7s ease .54s forwards;}
+  .hero .hero-ctas{opacity:0; animation:introRise .7s ease .64s forwards;}
+  .hero .hero-stats{opacity:0; animation:introRise .7s ease .74s forwards;}
+  .hero .eyebrow,.hero .lead,.hero .maker-intro,.hero .hero-ctas,.hero .hero-stats{transform:translateY(18px);}
+  .hero-art{opacity:0; animation:heroStageIn 1.05s cubic-bezier(.18,.8,.18,1) .18s forwards;}
+  .hero p.lead{
+    font-size:1.15rem; max-width:46ch; color:rgba(34,30,27,0.78);
+    margin-bottom:32px;
+  }
+  .hero-ctas{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:34px;}
+  .hero-stats{
+    display:flex; gap:32px; flex-wrap:wrap;
+  }
+  .hero-stats div strong{
+    display:block; font-family:'Bricolage Grotesque',sans-serif; font-size:1.6rem; font-weight:800;
+  }
+  .hero-stats div span{ font-size:0.82rem; color:rgba(34,30,27,0.62); }
+
+  .hero-art{
+    position:relative;
+    aspect-ratio: 1/1;
+    perspective:1100px;
+    isolation:isolate;
+  }
+  .hero-stage{
+    position:absolute;
+    inset:0;
+    transform-style:preserve-3d;
+    transform:rotateX(var(--hero-rx, 0deg)) rotateY(var(--hero-ry, 0deg));
+    transition:transform .16s ease-out;
+    will-change:transform;
+  }
+  .hero-art svg{ width:100%; height:100%; }
+  .splat{
+    position:absolute;
+    filter: drop-shadow(0 12px 18px rgba(34,30,27,0.14));
+  }
+  .hero-photo{
+    position:relative;
+    width:100%; height:100%;
+    transform-style:preserve-3d;
+  }
+  .hero-photo .main-shot{
+    width:82%; height:82%;
+    margin:0 auto;
+    object-fit:cover;
+    border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+    box-shadow: 0 22px 40px rgba(34,30,27,0.22);
+    transform:translateZ(24px);
+    transition:filter .3s ease;
+  }
+  .hero-photo .accent-shot{
+    position:absolute;
+    width:38%; aspect-ratio:1;
+    object-fit:cover;
+    border-radius:50%;
+    border:6px solid var(--canvas);
+    box-shadow: 0 14px 26px rgba(34,30,27,0.22);
+    bottom:-2%; right:-4%;
+    transform:translateZ(86px);
+    animation:accentFloat 5.4s ease-in-out infinite;
+  }
+  .hero-photo .paint-dot{
+    position:absolute;
+    width:64px; height:64px;
+    border-radius:50% 50% 50% 6%;
+    top:6%; left:-2%;
+    box-shadow: 0 10px 18px rgba(34,30,27,0.18);
+    transform:translateZ(112px);
+    animation:paintBob 4.8s ease-in-out infinite;
+  }
+  .maker-seal{
+    position:absolute;
+    top:-2%; right:2%;
+    width:132px; aspect-ratio:1;
+    border-radius:50%;
+    background:var(--ink);
+    color:var(--canvas);
+    border:5px solid var(--canvas);
+    box-shadow:0 18px 35px rgba(34,30,27,.24);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+    font-size:.62rem;
+    line-height:1.25;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    transform:translateZ(145px) rotate(7deg);
+    animation:sealFloat 5.8s ease-in-out infinite;
+    z-index:4;
+  }
+  .maker-seal .flower-mark{font-size:1.25rem; color:var(--marigold); line-height:1; margin-bottom:4px;}
+  .maker-seal strong{
+    font-family:'Caveat',cursive;
+    font-size:1.45rem;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--marigold);
+  }
+  .float-petal{
+    position:absolute;
+    width:28px;
+    height:46px;
+    border-radius:80% 15% 80% 15%;
+    filter:drop-shadow(0 9px 10px rgba(34,30,27,.15));
+    pointer-events:none;
+    z-index:3;
+  }
+  .petal-one{left:2%; bottom:13%; background:var(--poppy); transform:translateZ(118px) rotate(24deg); animation:petalOne 6s ease-in-out infinite;}
+  .petal-two{right:8%; top:27%; background:var(--blossom); transform:translateZ(105px) rotate(-28deg); animation:petalTwo 7.2s ease-in-out infinite;}
+  .petal-three{left:18%; top:0; width:20px; height:34px; background:var(--cobalt); transform:translateZ(78px) rotate(60deg); animation:petalThree 6.8s ease-in-out infinite;}
+  .maker-intro{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin:-12px 0 26px;
+    color:rgba(34,30,27,.64);
+    font-size:.86rem;
+  }
+  .maker-intro::before{content:""; width:34px; height:2px; background:var(--poppy);}
+  .maker-intro strong{font-family:'Caveat',cursive; font-size:1.7rem; color:var(--poppy); line-height:1;}
+  .maker-intro strong,
+  .maker-seal strong{
+    background:linear-gradient(90deg,var(--poppy),var(--marigold),var(--blossom),var(--poppy));
+    background-size:240% 100%;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    animation:nameShimmer 4s linear infinite;
+  }
+  .floating-brush{
+    position:absolute;
+    left:-7%;
+    bottom:8%;
+    width:150px;
+    height:17px;
+    border-radius:18px 6px 6px 18px;
+    background:linear-gradient(180deg,#B96D3D,#7A3F25 54%,#522617);
+    box-shadow:0 14px 22px rgba(34,30,27,.24), inset 0 2px 2px rgba(255,255,255,.28);
+    transform:translateZ(142px) rotate(-22deg);
+    animation:brushFloat 5.6s ease-in-out infinite;
+    z-index:5;
+  }
+  .floating-brush::before{
+    content:"";
+    position:absolute;
+    right:-31px;
+    top:-4px;
+    width:40px;
+    height:25px;
+    border-radius:4px 70% 70% 4px;
+    background:linear-gradient(180deg,#35312D,#171513);
+    clip-path:polygon(0 10%,100% 0,82% 50%,100% 100%,0 88%);
+  }
+  .floating-brush::after{
+    content:"";
+    position:absolute;
+    right:4px;
+    top:-2px;
+    width:21px;
+    height:21px;
+    border-radius:4px;
+    background:linear-gradient(90deg,#B9B6AD,#F2EEE1,#8C8A84);
+    box-shadow:inset 0 0 0 1px rgba(34,30,27,.18);
+  }
+
+  @keyframes accentFloat{
+    0%,100%{transform:translateZ(86px) translateY(0) rotate(0deg);}
+    50%{transform:translateZ(96px) translateY(-10px) rotate(3deg);}
+  }
+  @keyframes paintBob{
+    0%,100%{transform:translateZ(112px) translateY(0) rotate(0deg);}
+    50%{transform:translateZ(126px) translateY(-12px) rotate(11deg);}
+  }
+  @keyframes sealFloat{
+    0%,100%{transform:translateZ(145px) translateY(0) rotate(7deg);}
+    50%{transform:translateZ(160px) translateY(-12px) rotate(2deg);}
+  }
+  @keyframes petalOne{
+    0%,100%{transform:translateZ(118px) translate(0,0) rotate(24deg);}
+    50%{transform:translateZ(138px) translate(8px,-16px) rotate(46deg);}
+  }
+  @keyframes petalTwo{
+    0%,100%{transform:translateZ(105px) translate(0,0) rotate(-28deg);}
+    50%{transform:translateZ(126px) translate(-12px,-17px) rotate(-8deg);}
+  }
+  @keyframes petalThree{
+    0%,100%{transform:translateZ(78px) translate(0,0) rotate(60deg);}
+    50%{transform:translateZ(105px) translate(12px,-12px) rotate(92deg);}
+  }
+  @keyframes introRise{to{opacity:1; transform:translateY(0);}}
+  @keyframes titleRise{to{opacity:1; transform:translateY(0) rotate(0);}}
+  @keyframes heroStageIn{
+    from{opacity:0; transform:translateX(55px) scale(.9) rotate(3deg);}
+    to{opacity:1; transform:translateX(0) scale(1) rotate(0);}
+  }
+  @keyframes ambientDrift{
+    0%{transform:translate3d(0,0,0) scale(.9);}
+    100%{transform:translate3d(7vw,-6vh,0) scale(1.18);}
+  }
+  @keyframes screenPetal{
+    from{transform:translate3d(0,0,0) rotate(0deg);}
+    to{transform:translate3d(var(--sway),-135vh,0) rotate(720deg);}
+  }
+  @keyframes logoDot{
+    0%,100%{transform:scale(1) rotate(0); border-radius:50%;}
+    50%{transform:scale(1.28) rotate(45deg); border-radius:50% 12% 50% 12%;}
+  }
+  @keyframes nameShimmer{to{background-position:-240% 0;}}
+  @keyframes brushFloat{
+    0%,100%{transform:translateZ(142px) translateY(0) rotate(-22deg);}
+    50%{transform:translateZ(168px) translateY(-15px) rotate(-15deg);}
+  }
+
+  /* Mouse-responsive depth and soft scroll entrances */
+  .tilt-card{
+    --card-rx:0deg;
+    --card-ry:0deg;
+    transform:perspective(900px) rotateX(var(--card-rx)) rotateY(var(--card-ry));
+    transform-style:preserve-3d;
+    will-change:transform;
+  }
+  .card.tilt-card:hover,
+  .tube.tilt-card:hover,
+  .gcard.tilt-card:hover{
+    transform:perspective(900px) rotateX(var(--card-rx)) rotateY(var(--card-ry)) translateY(-6px);
+  }
+  .reveal-ready{
+    opacity:0;
+    transform:translateY(30px) scale(.985);
+    transition:opacity .72s ease, transform .72s cubic-bezier(.2,.7,.2,1);
+    transition-delay:var(--reveal-delay, 0ms);
+  }
+  .reveal-ready.in-view{opacity:1; transform:translateY(0) scale(1);}
+
+  /* photo-backed product canvases with a brand-color tint so a handful of
+     real photos can differentiate products while staying on-palette */
+  .card-canvas.photo, .story-art.photo, .gcard.photo{
+    background-size:cover;
+    background-position:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .card-canvas.photo::after, .story-art.photo::after, .gcard.photo::after{
+    content:"";
+    position:absolute; inset:0;
+    mix-blend-mode:multiply;
+    opacity:0.28;
+  }
+  .tint-poppy::after{ background:var(--poppy); }
+  .tint-marigold::after{ background:var(--marigold); }
+  .tint-cobalt::after{ background:var(--cobalt); }
+  .tint-leaf::after{ background:var(--leaf); }
+  .tint-blossom::after{ background:var(--blossom); }
+  .tint-none::after{ display:none; }
+
+  /* ===== Section shell ===== */
+  section{ padding:88px 0; }
+  .section-head{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:24px;
+    margin-bottom:44px; flex-wrap:wrap;
+  }
+  .section-head .tag{
+    font-family:'Caveat', cursive; color:var(--cobalt); font-size:1.3rem; font-weight:700; display:block; margin-bottom:6px;
+  }
+  .section-head h2{ font-size:clamp(1.9rem, 3.2vw, 2.7rem); }
+  .section-head h2{position:relative; display:inline-block;}
+  .section-head h2::after{
+    content:"";
+    position:absolute;
+    left:0;
+    bottom:-12px;
+    width:0;
+    height:7px;
+    border-radius:70% 20% 70% 20%;
+    background:linear-gradient(90deg,var(--poppy),var(--marigold));
+    transform:rotate(-1deg);
+    transition:width .75s cubic-bezier(.2,.8,.2,1) .15s;
+  }
+  .section-head.in-view h2::after{width:min(92px,45%);}
+  .section-head p{ max-width:42ch; color:rgba(34,30,27,0.68); }
+
+  /* ===== Palette / category tiles (signature reused) ===== */
+  .palette{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:26px;
+  }
+  .tube{
+    position:relative;
+    background:var(--canvas-dim);
+    border:1px solid var(--line);
+    padding:34px 26px 30px;
+    border-radius:28px 28px 100px 100px/28px 28px 60px 60px;
+    overflow:hidden;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .tube:hover{ transform:translateY(-6px); box-shadow:var(--shadow); }
+  .tube .dab{
+    width:56px;height:56px; border-radius:50% 50% 50% 4%;
+    margin-bottom:18px;
+  }
+  .tube h3{ font-size:1.3rem; margin-bottom:8px; }
+  .tube p{ font-size:0.92rem; color:rgba(34,30,27,0.66); margin:0 0 18px; }
+  .tube a{ font-weight:700; font-size:0.88rem; display:inline-flex; align-items:center; gap:6px; }
+  .tube a svg{ width:16px; height:16px; transition:transform .2s ease; }
+  .tube a:hover svg{ transform:translateX(4px); }
+
+  /* ===== Product grid ===== */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:24px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    transition:transform .22s ease, box-shadow .22s ease;
+  }
+  .card:hover{ transform:translateY(-5px); box-shadow:var(--shadow); }
+  .card-canvas{
+    aspect-ratio:4/5;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    border-bottom:1px solid var(--line);
+  }
+  .card-canvas svg{ width:70%; height:70%; }
+  .card-badge{
+    position:absolute; top:12px; left:12px;
+    background:var(--ink); color:var(--canvas);
+    font-size:0.68rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+    padding:5px 10px; border-radius:20px;
+    animation:badgeBreathe 2.8s ease-in-out infinite;
+  }
+  .card-canvas.photo{transition:filter .35s ease, transform .35s ease;}
+  .card:hover .card-canvas.photo{filter:saturate(1.14) contrast(1.03); transform:scale(1.025) translateZ(14px);}
+  @keyframes badgeBreathe{50%{transform:translateY(-2px) scale(1.04); box-shadow:0 6px 14px rgba(34,30,27,.2);}}
+  .card-body{ padding:16px 18px 20px; }
+  .card-body h3{ font-size:1.02rem; font-weight:600; font-family:'Work Sans',sans-serif; margin-bottom:4px; }
+  .card-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .price{ font-family:'Caveat', cursive; font-weight:700; font-size:1.4rem; }
+  .price small{ font-family:'Work Sans',sans-serif; font-size:0.7rem; color:rgba(34,30,27,0.5); font-weight:500; text-decoration:line-through; margin-right:6px; }
+  .addbtn{
+    min-width:108px;height:38px; border-radius:40px;
+    background:var(--canvas-dim); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; gap:7px; padding:0 12px;
+    cursor:pointer; transition:background .2s ease, transform .2s ease, color .2s ease, box-shadow .2s ease;
+    font-size:.72rem; font-weight:800; color:var(--ink); white-space:nowrap;
+  }
+  .addbtn:hover{ background:var(--poppy); border-color:var(--poppy); color:#fff; transform:translateY(-2px); box-shadow:0 8px 18px rgba(230,59,46,.22); }
+  .addbtn:active{transform:translateY(0) scale(.97);}
+  .addbtn svg{ width:16px; height:16px; }
+  .addbtn:hover svg{ stroke:#fff; }
+  .addbtn.added{background:var(--leaf); border-color:var(--leaf); color:#fff; animation:addSuccess .55s ease;}
+  .addbtn.added svg{stroke:#fff;}
+  @keyframes addSuccess{35%{transform:translateY(-3px) scale(1.08);} 70%{transform:translateY(1px) scale(.98);} 100%{transform:translateY(0) scale(1);}}
+  .cart-toast{
+    position:fixed;
+    left:50%;
+    bottom:28px;
+    z-index:220;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:min(360px,calc(100vw - 32px));
+    padding:13px 16px;
+    background:var(--ink);
+    color:var(--canvas);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:18px;
+    box-shadow:0 18px 45px rgba(34,30,27,.3);
+    opacity:0;
+    transform:translate(-50%,30px) scale(.94);
+    pointer-events:none;
+    transition:opacity .3s ease, transform .3s cubic-bezier(.2,.8,.2,1.2);
+  }
+  .cart-toast.show{opacity:1; transform:translate(-50%,0) scale(1); pointer-events:auto;}
+  .cart-toast .toast-check{
+    width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+    background:var(--leaf); color:#fff; font-weight:800; flex:none;
+  }
+  .cart-toast strong{font-size:.86rem; flex:1;}
+  .cart-toast a{color:var(--marigold); font-weight:800; font-size:.8rem; white-space:nowrap;}
+  .flying-product{
+    position:fixed;
+    z-index:210;
+    pointer-events:none;
+    border-radius:14px;
+    background-size:cover;
+    background-position:center;
+    box-shadow:0 16px 35px rgba(34,30,27,.26);
+  }
+
+  /* ===== Process ===== */
+  .process{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:36px;
+    position:relative;
+  }
+  .process::before{
+    content:""; position:absolute; top:26px; left:8%; right:8%; height:3px;
+    background-image: linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 20px);
+    background-size:20px 3px; opacity:0.25;
+    animation:dashedRoad 1.2s linear infinite;
+  }
+  @keyframes dashedRoad{to{background-position:20px 0;}}
+  .step{ position:relative; }
+  .step-num{
+    width:54px; height:54px; border-radius:50%;
+    background:var(--ink); color:var(--canvas);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:1.2rem;
+    margin-bottom:20px; position:relative; z-index:1;
+  }
+  .step:nth-child(1) .step-num{ background:var(--poppy); }
+  .step:nth-child(2) .step-num{ background:var(--marigold); color:var(--ink); }
+  .step:nth-child(3) .step-num{ background:var(--cobalt); }
+  .step.in-view .step-num{animation:stepPop .72s cubic-bezier(.2,.85,.25,1.3) both;}
+  .step:nth-child(2).in-view .step-num{animation-delay:.12s;}
+  .step:nth-child(3).in-view .step-num{animation-delay:.24s;}
+  @keyframes stepPop{0%{transform:scale(.45) rotate(-18deg);} 70%{transform:scale(1.13) rotate(4deg);} 100%{transform:scale(1) rotate(0);}}
+  .step h3{ font-size:1.2rem; margin-bottom:8px; }
+  .step p{ color:rgba(34,30,27,0.68); font-size:0.94rem; max-width:32ch; }
+
+  /* ===== Story / about ===== */
+  .story{
+    display:grid; grid-template-columns:0.85fr 1.15fr; gap:56px; align-items:center;
+  }
+  .story-art{
+    background:var(--blossom);
+    aspect-ratio:1;
+    position:relative;
+    overflow:hidden;
+  }
+  .story-art.blob{animation:storyMorph 9s ease-in-out infinite;}
+  @keyframes storyMorph{
+    0%,100%{border-radius:42% 58% 63% 37% / 41% 44% 56% 59%;}
+    50%{border-radius:57% 43% 38% 62% / 55% 61% 39% 45%;}
+  }
+  .story-art svg{ position:absolute; inset:0; width:100%; height:100%; }
+  .story-copy .tag{ font-family:'Caveat',cursive; color:var(--poppy); font-size:1.3rem; font-weight:700; }
+  .story-copy h2{ font-size:clamp(1.9rem,3vw,2.5rem); margin:6px 0 20px; }
+  .story-copy p{ color:rgba(34,30,27,0.72); margin-bottom:16px; max-width:56ch; }
+  .story-quote{
+    font-family:'Caveat', cursive; font-size:1.6rem; font-weight:600;
+    color:var(--cobalt); border-left:4px solid var(--marigold); padding-left:18px; margin:24px 0;
+  }
+  .signature-line{
+    display:flex; align-items:center; gap:12px; margin-top:20px;
+  }
+  .signature-line .sig{ font-family:'Caveat', cursive; font-size:1.5rem; font-weight:700; }
+  .signature-line .sig{position:relative;}
+  .signature-line .sig::after{
+    content:""; position:absolute; left:9px; right:0; bottom:-3px; height:3px;
+    background:var(--poppy); transform:scaleX(0) rotate(-2deg); transform-origin:left;
+    transition:transform .7s ease .4s;
+  }
+  .story-copy.in-view .signature-line .sig::after{transform:scaleX(1) rotate(-2deg);}
+  .signature-line span.role{ font-size:0.82rem; color:rgba(34,30,27,0.55); }
+
+  /* ===== Gallery strip ===== */
+  .gallery-strip{ padding-top:0; padding-bottom:0; }
+  .gallery-scroll{
+    display:flex; gap:18px; overflow-x:auto; padding:8px 0 20px;
+    scroll-snap-type:x mandatory;
+  }
+  .gallery-scroll::-webkit-scrollbar{ height:8px; }
+  .gallery-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+  .gcard{
+    flex:none; width:220px; aspect-ratio:3/4;
+    scroll-snap-align:start;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line);
+  }
+  .gcard svg{ width:75%; height:75%; }
+
+  /* ===== Newsletter / custom order ===== */
+  .cta-band{
+    background:var(--ink); color:var(--canvas);
+    border-radius:28px;
+    padding:56px 48px;
+    display:grid; grid-template-columns:1.2fr 1fr; gap:40px; align-items:center;
+    position:relative; overflow:hidden;
+  }
+  .cta-band::before,
+  .cta-band::after{
+    content:"";
+    position:absolute;
+    width:280px;
+    aspect-ratio:1;
+    border-radius:50%;
+    filter:blur(20px);
+    opacity:.26;
+    animation:ctaGlow 7s ease-in-out infinite alternate;
+  }
+  .cta-band::before{left:-100px; top:-170px; background:var(--poppy);}
+  .cta-band::after{right:-120px; bottom:-190px; background:var(--cobalt); animation-delay:-3s;}
+  .cta-band > *{position:relative; z-index:1;}
+  @keyframes ctaGlow{to{transform:translate(55px,45px) scale(1.22); opacity:.4;}}
+
+  .paint-spark{
+    position:fixed;
+    left:0;
+    top:0;
+    width:var(--spark-size, 12px);
+    aspect-ratio:1;
+    border-radius:70% 20% 60% 30%;
+    pointer-events:none;
+    z-index:180;
+    animation:sparkFade .78s ease-out forwards;
+    filter:drop-shadow(0 3px 3px rgba(34,30,27,.12));
+  }
+  @keyframes sparkFade{
+    from{opacity:.72; transform:translate(-50%,-50%) scale(.8) rotate(0);}
+    to{opacity:0; transform:translate(calc(-50% + var(--spark-x)),calc(-50% + var(--spark-y))) scale(.08) rotate(160deg);}
+  }
+
+  /* ===== Full-page cart + checkout, embedded in this one HTML file ===== */
+  .one-file-page[hidden], #shopFooter[hidden], #top[hidden]{display:none!important;}
+  .one-file-page{
+    position:relative; z-index:2; min-height:calc(100vh - 82px); padding:68px 0 96px;
+    background:linear-gradient(180deg,rgba(251,244,233,.94),rgba(243,234,217,.9));
+    animation:pageReveal .62s cubic-bezier(.2,.75,.2,1) both;
+  }
+  @keyframes pageReveal{from{opacity:0;transform:translateY(22px) scale(.992);}to{opacity:1;transform:none;}}
+  .subpage-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:38px;}
+  .subpage-head .tag{font-family:'Caveat',cursive;font-size:1.28rem;font-weight:700;color:var(--poppy);}
+  .subpage-head h1{font-size:clamp(2.7rem,6vw,4.8rem);letter-spacing:-.04em;margin:3px 0 0;}
+  .subpage-head p{max-width:42ch;color:rgba(34,30,27,.64);margin:0 0 7px;}
+  .subpage-back{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;font-weight:800;padding:10px 15px;border:1px solid var(--line);border-radius:40px;background:var(--canvas);transition:.2s ease;}
+  .subpage-back:hover{background:var(--ink);color:var(--canvas);transform:translateY(-2px);}
+
+  .one-cart-layout{display:grid;grid-template-columns:minmax(0,1fr) 365px;gap:30px;align-items:start;}
+  .one-cart-list{display:grid;gap:18px;}
+  .one-cart-item{
+    display:grid;grid-template-columns:128px minmax(0,1fr) auto;gap:20px;align-items:center;
+    padding:16px;border:1px solid var(--line);border-radius:24px;background:rgba(255,253,248,.94);
+    box-shadow:0 10px 28px rgba(34,30,27,.06);animation:cartItemIn .55s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay:var(--item-delay);transition:transform .25s ease,box-shadow .25s ease,opacity .32s ease;
+  }
+  .one-cart-item:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+  .one-cart-item.removing{opacity:0;transform:translateX(80px) rotate(3deg) scale(.92);}
+  @keyframes cartItemIn{from{opacity:0;transform:translateY(25px) scale(.96);}to{opacity:1;transform:none;}}
+  .one-cart-image{height:140px;border-radius:18px;background-size:cover;background-position:center;position:relative;overflow:hidden;}
+  .one-cart-image::after{content:"";position:absolute;inset:-80% -45%;background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.43) 50%,transparent 60%);transform:translateX(-70%);transition:transform .7s ease;}
+  .one-cart-item:hover .one-cart-image::after{transform:translateX(70%);}
+  .one-cart-category{font-size:.66rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--poppy);margin:0 0 6px;}
+  .one-cart-copy h2{font-size:1.2rem;margin-bottom:7px;}
+  .one-unit-price{font-family:'Caveat',cursive;font-size:1.25rem;font-weight:700;color:rgba(34,30,27,.68);}
+  .one-item-actions{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;}
+  .one-quantity{display:flex;align-items:center;overflow:hidden;border:1px solid var(--line);border-radius:30px;background:var(--canvas);}
+  .one-qty-btn{width:35px;height:34px;border:0;background:transparent;cursor:pointer;font-weight:800;transition:.18s ease;}
+  .one-qty-btn:hover{background:var(--ink);color:var(--canvas);transform:scale(1.08);}
+  .one-qty-value{width:34px;text-align:center;font-size:.82rem;font-weight:800;}
+  .one-qty-value.pop{animation:oneQtyPop .3s ease;}
+  @keyframes oneQtyPop{50%{transform:scale(1.45);color:var(--poppy);}}
+  .one-remove{border:0;background:none;color:rgba(34,30,27,.5);font-size:.74rem;font-weight:800;cursor:pointer;}
+  .one-remove:hover{color:var(--poppy);}
+  .one-line-price{align-self:start;padding-top:8px;font-family:'Bricolage Grotesque',sans-serif;font-size:1.35rem;font-weight:800;white-space:nowrap;}
+  .one-summary{
+    position:sticky;top:104px;padding:28px;border-radius:28px;background:var(--ink);color:var(--canvas);overflow:hidden;
+    box-shadow:0 22px 52px rgba(34,30,27,.24);animation:summaryFloatIn .65s ease .12s both;
+  }
+  @keyframes summaryFloatIn{from{opacity:0;transform:translateX(30px) rotate(2deg);}to{opacity:1;transform:none;}}
+  .one-summary::before,.one-summary::after{content:"";position:absolute;width:180px;aspect-ratio:1;border-radius:50%;filter:blur(14px);opacity:.25;animation:summaryOrb 6s ease-in-out infinite alternate;}
+  .one-summary::before{right:-100px;top:-115px;background:var(--poppy);}.one-summary::after{left:-110px;bottom:-120px;background:var(--cobalt);animation-delay:-3s;}
+  @keyframes summaryOrb{to{transform:translate(35px,28px) scale(1.2);}}
+  .one-summary>*{position:relative;z-index:1;}.one-summary h2{font-size:1.5rem;margin-bottom:20px;}
+  .one-summary-row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;color:rgba(251,244,233,.68);font-size:.86rem;}.one-summary-row strong{color:var(--canvas);}
+  .one-summary-total{display:flex;align-items:end;justify-content:space-between;gap:20px;border-top:1px solid rgba(251,244,233,.18);margin-top:10px;padding-top:19px;font-weight:800;}
+  .one-summary-total strong{font-size:1.9rem;color:var(--marigold);}.one-delivery-note{font-size:.7rem;color:rgba(251,244,233,.55);line-height:1.5;margin:16px 0;}
+  .one-checkout-btn{position:relative;isolation:isolate;overflow:hidden;width:100%;min-height:51px;border:0;border-radius:40px 14px 40px 14px;background:var(--marigold);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;transition:.22s ease;}
+  .one-checkout-btn::after{content:"";position:absolute;inset:-60% auto -60% -30%;width:24%;background:rgba(255,255,255,.55);transform:skewX(-20deg) translateX(-250%);transition:transform .6s ease;z-index:-1;}
+  .one-checkout-btn:hover{background:var(--poppy);color:#fff;transform:translateY(-3px);}.one-checkout-btn:hover::after{transform:skewX(-20deg) translateX(720%);}.one-checkout-btn.disabled{opacity:.4;pointer-events:none;}
+  .one-empty{display:none;min-height:420px;border:1px dashed rgba(34,30,27,.24);border-radius:28px;background:rgba(255,253,248,.66);place-items:center;text-align:center;padding:40px;}.one-empty.show{display:grid;animation:emptyAppear .55s ease both;}
+  @keyframes emptyAppear{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:none;}}
+  .one-empty-flower{font-size:4rem;display:block;color:var(--blossom);animation:emptyFlower 3.8s ease-in-out infinite;}.one-empty h2{font-size:1.7rem;margin:9px 0;}.one-empty p{max-width:38ch;color:rgba(34,30,27,.62);margin:0 auto 22px;}
+  @keyframes emptyFlower{50%{transform:translateY(-12px) rotate(10deg) scale(1.08);}}
+  .one-shop-btn{display:inline-flex;padding:12px 20px;border-radius:40px 14px 40px 14px;background:var(--ink);color:var(--canvas);font-weight:800;}
+
+  .one-checkout-steps{display:flex;align-items:center;justify-content:center;max-width:610px;margin:0 auto 38px;}
+  .one-step{display:flex;align-items:center;gap:8px;font-size:.76rem;font-weight:800;color:rgba(34,30,27,.43);}.one-step.active{color:var(--ink);}
+  .one-step-dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);background:var(--canvas);}.one-step.active .one-step-dot{background:var(--ink);color:var(--canvas);border-color:var(--ink);animation:activeStep 2.4s ease-in-out infinite;}
+  .one-step-line{height:2px;flex:1;min-width:60px;max-width:130px;background:var(--line);margin:0 12px;position:relative;overflow:hidden;}.one-step-line::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--poppy),var(--marigold));transform:translateX(-100%);animation:stepLine 1s ease .25s forwards;}
+  @keyframes activeStep{50%{transform:scale(1.12);box-shadow:0 0 0 8px rgba(34,30,27,.08);}}@keyframes stepLine{to{transform:none;}}
+  .one-checkout-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:30px;align-items:start;}
+  .one-form-card,.one-order-card{border:1px solid var(--line);border-radius:28px;background:rgba(255,253,248,.94);box-shadow:0 18px 48px rgba(34,30,27,.09);animation:formCardIn .65s ease both;}
+  .one-form-card{padding:31px;}.one-order-card{position:sticky;top:104px;padding:27px;animation-delay:.12s;}@keyframes formCardIn{from{opacity:0;transform:translateY(28px) scale(.97);}to{opacity:1;transform:none;}}
+  .one-form-card h2,.one-order-card h2{font-size:1.5rem;margin-bottom:6px;}.one-form-note{font-size:.78rem;color:rgba(34,30,27,.58);margin:0 0 23px;}
+  .one-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px;}.one-field.full{grid-column:1/-1;}.one-field label{display:block;font-size:.72rem;font-weight:800;margin-bottom:7px;}
+  .one-field input,.one-field textarea{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--canvas);color:var(--ink);outline:none;transition:.2s ease;}.one-field textarea{min-height:90px;resize:vertical;}
+  .one-field input:focus,.one-field textarea:focus{border-color:var(--cobalt);box-shadow:0 0 0 4px rgba(40,87,166,.1);transform:translateY(-2px);}
+  .one-payment-title{margin-top:28px;padding-top:25px;border-top:1px solid var(--line);}.one-payment-options{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .one-payment{position:relative;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--canvas);cursor:pointer;transition:.2s ease;}.one-payment:hover{transform:translateY(-3px);}.one-payment input{position:absolute;opacity:0;}.one-payment:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:#fff;}.one-payment strong{display:block;font-size:.8rem;margin-bottom:3px;}.one-payment span{font-size:.66rem;color:rgba(34,30,27,.56);}
+  .one-order-list{display:grid;gap:12px;max-height:320px;overflow:auto;margin:18px 0;padding-right:3px;}.one-order-item{display:grid;grid-template-columns:58px 1fr auto;gap:11px;align-items:center;animation:orderItemIn .45s ease both;animation-delay:var(--order-delay);}.one-order-thumb{height:64px;border-radius:12px;background-size:cover;background-position:center;}.one-order-copy strong{display:block;font-size:.75rem;line-height:1.3;}.one-order-copy span{font-size:.65rem;color:rgba(34,30,27,.52);}.one-order-price{font-size:.74rem;font-weight:800;}@keyframes orderItemIn{from{opacity:0;transform:translateX(17px);}to{opacity:1;transform:none;}}
+  .one-price-row{display:flex;justify-content:space-between;padding:8px 0;font-size:.8rem;color:rgba(34,30,27,.6);}.one-price-row b{color:var(--ink);}.one-price-total{display:flex;justify-content:space-between;align-items:end;border-top:1px solid var(--line);margin-top:9px;padding-top:17px;font-weight:800;}.one-price-total strong{font-size:1.7rem;color:var(--poppy);}
+  .one-place-order{position:relative;isolation:isolate;overflow:hidden;width:100%;min-height:51px;border:0;border-radius:40px 14px 40px 14px;background:var(--ink);color:var(--canvas);font-weight:800;cursor:pointer;margin-top:20px;transition:.2s ease;}.one-place-order:hover{background:var(--poppy);transform:translateY(-3px);}.one-place-order:disabled{opacity:.45;pointer-events:none;}.one-prototype-note{font-size:.64rem;line-height:1.5;color:rgba(34,30,27,.46);text-align:center;margin:10px 0 0;}
+  .one-checkout-empty{display:none;text-align:center;padding:55px 20px;}.one-checkout-empty.show{display:block;}.one-checkout-empty span{font-size:4rem;color:var(--blossom);animation:emptyFlower 3.8s ease-in-out infinite;display:block;}
+  .one-success{position:fixed;inset:0;z-index:300;background:rgba(251,244,233,.96);backdrop-filter:blur(15px);display:none;place-items:center;padding:24px;}.one-success.show{display:grid;animation:successFade .4s ease both;}.one-success-card{width:min(520px,100%);padding:46px 32px;border-radius:32px;border:1px solid var(--line);background:#fffdf8;box-shadow:0 28px 75px rgba(34,30,27,.18);text-align:center;position:relative;overflow:hidden;}.one-success-mark{width:88px;height:88px;margin:0 auto 21px;border-radius:50%;display:grid;place-items:center;background:var(--leaf);color:#fff;font-size:2.2rem;animation:successPop .65s cubic-bezier(.2,.8,.2,1.4) both;}.one-success-card h2{font-size:2rem}.one-success-card p{color:rgba(34,30,27,.62);line-height:1.6}.one-order-ref{display:inline-block;padding:8px 14px;border-radius:20px;background:var(--canvas);font-size:.78rem;font-weight:800;margin:3px 0 17px;}.one-success-card a{display:inline-flex;padding:12px 21px;border-radius:40px 14px 40px 14px;background:var(--ink);color:var(--canvas);font-weight:800;}.one-confetti{position:absolute;left:var(--confetti-x);top:-20px;width:10px;height:18px;background:var(--confetti-color);animation:oneConfetti 2.3s ease-in forwards;animation-delay:var(--confetti-delay);}@keyframes successFade{from{opacity:0}to{opacity:1}}@keyframes successPop{from{transform:scale(0) rotate(-45deg)}to{transform:none}}@keyframes oneConfetti{to{transform:translate(var(--confetti-drift),620px) rotate(720deg);opacity:0}}
+  .cta-band h2{ color:var(--canvas); font-size:clamp(1.8rem,3vw,2.4rem); margin-bottom:14px; }
+  .cta-band p{ color:rgba(251,244,233,0.72); max-width:44ch; margin-bottom:0; }
+  .cta-form{ display:flex; gap:10px; flex-wrap:wrap; }
+  .cta-form input[type=email]{
+    flex:1; min-width:200px;
+    padding:14px 18px; border-radius:40px; border:none;
+    background:rgba(251,244,233,0.12); color:var(--canvas);
+    font-family:'Work Sans',sans-serif; font-size:0.95rem;
+    border:1px solid rgba(251,244,233,0.3);
+  }
+  .cta-form input::placeholder{ color:rgba(251,244,233,0.55); }
+  .cta-form .btn{ background:var(--marigold); border-color:var(--marigold); color:var(--ink); }
+  .cta-form .btn:hover{ background:var(--poppy); border-color:var(--poppy); color:#fff; }
+  .form-note{ font-size:0.78rem; color:rgba(251,244,233,0.5); margin-top:10px; }
+
+  /* ===== Footer ===== */
+  footer{ padding:60px 0 36px; border-top:1px solid var(--line); }
+  .footer-grid{
+    display:grid; grid-template-columns:1.4fr repeat(3,1fr); gap:40px;
+    margin-bottom:44px;
+  }
+  .footer-grid h4{ font-size:0.85rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:16px; font-weight:700; }
+  .footer-grid ul{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+  .footer-grid a{ font-size:0.92rem; color:rgba(34,30,27,0.72); }
+  .footer-grid a:hover{ color:var(--poppy); }
+  .footer-brand p{ color:rgba(34,30,27,0.62); font-size:0.92rem; max-width:32ch; margin-top:10px; }
+  .foot-bottom{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+    font-size:0.8rem; color:rgba(34,30,27,0.5);
+    border-top:1px solid var(--line); padding-top:24px;
+  }
+  .foot-bottom .socials{ display:flex; gap:14px; }
+  .foot-bottom .socials a{ width:34px; height:34px; border:1px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .foot-bottom .socials a:hover{ background:var(--ink); color:var(--canvas); border-color:var(--ink); }
+  .foot-bottom .socials svg{ width:15px; height:15px; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 980px){
+    .hero .wrap{ grid-template-columns:1fr; }
+    .hero-art{ order:-1; max-width:420px; margin:0 auto; }
+    .palette{ grid-template-columns:1fr; }
+    .grid{ grid-template-columns:repeat(2,1fr); }
+    .process{ grid-template-columns:1fr; gap:28px; }
+    .process::before{ display:none; }
+    .story{ grid-template-columns:1fr; }
+    .story-art{ max-width:360px; margin:0 auto; }
+    .cta-band{ grid-template-columns:1fr; }
+    .footer-grid{ grid-template-columns:1fr 1fr; }
+    .one-cart-layout,.one-checkout-layout{grid-template-columns:1fr;}.one-summary,.one-order-card{position:relative;top:0;}
+  }
+  @media (max-width: 720px){
+    .nav-links{
+      position:fixed; inset:64px 0 0 0; background:var(--canvas);
+      flex-direction:column; padding:32px 28px; gap:1.6rem;
+      transform:translateY(-110%); transition:transform .3s ease;
+      z-index:40;
+    }
+    .nav-links.open{ transform:translateY(0); }
+    .nav-links a{ font-size:1.3rem; }
+    .menu-toggle{ display:block; }
+    .nav-cta .btn span{ display:none; }
+    .cart-link{width:42px; height:42px;}
+    .grid{ grid-template-columns:1fr 1fr; gap:14px; }
+    .card-meta{flex-direction:column; align-items:stretch; gap:9px;}
+    .price{align-self:flex-start;}
+    .addbtn{width:100%; min-width:0;}
+    section{ padding:60px 0; }
+    .footer-grid{ grid-template-columns:1fr; }
+    .maker-seal{width:105px; top:-3%; right:0;}
+    .float-petal{transform:scale(.8);}
+    .logo-copy{gap:5px;}
+    .logo-by{font-size:.5rem;}
+    .floating-brush{width:105px; left:-4%; bottom:4%;}
+    .ambient-blob{width:70vw; opacity:.08;}
+    .cart-toast{bottom:18px;}
+    .one-file-page{padding:46px 0 72px;}.subpage-head{align-items:flex-start;flex-direction:column;}.one-cart-item{grid-template-columns:90px minmax(0,1fr);gap:13px;padding:12px;}.one-cart-image{height:110px;}.one-line-price{grid-column:2;padding:0;margin-top:-4px;}.one-form-card,.one-order-card{padding:22px;border-radius:22px;}.one-form-grid,.one-payment-options{grid-template-columns:1fr;}.one-field.full{grid-column:auto;}.one-checkout-steps .one-step span:last-child{display:none;}.one-step-line{min-width:34px;margin:0 7px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<div class="ambient-canvas" aria-hidden="true">
+  <span class="ambient-blob one"></span>
+  <span class="ambient-blob two"></span>
+  <span class="ambient-blob three"></span>
+  <span class="ambient-petal" style="--x:8%;--duration:17s;--delay:-5s;--sway:90px;--petal-color:var(--poppy);"></span>
+  <span class="ambient-petal" style="--x:26%;--duration:21s;--delay:-15s;--sway:-80px;--petal-color:var(--marigold);"></span>
+  <span class="ambient-petal" style="--x:48%;--duration:18s;--delay:-10s;--sway:110px;--petal-color:var(--blossom);"></span>
+  <span class="ambient-petal" style="--x:68%;--duration:23s;--delay:-7s;--sway:-100px;--petal-color:var(--cobalt);"></span>
+  <span class="ambient-petal" style="--x:87%;--duration:19s;--delay:-13s;--sway:75px;--petal-color:var(--leaf);"></span>
+</div>
+
+<div class="marquee-bar" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Hand-painted, one tee at a time</span>
+    <span>Fresh blooms cut to order</span>
+    <span>Free notes card on every order</span>
+    <span>Made in a small home studio</span>
+    <span>Hand-painted, one tee at a time</span>
+    <span>Fresh blooms cut to order</span>
+    <span>Free notes card on every order</span>
+    <span>Made in a small home studio</span>
+  </div>
+</div>
+
+<header>
+  <nav class="wrap">
+    <a href="#top" class="logo"><span class="dot" style="border-radius:50%;"></span><span class="logo-copy">Bloom &amp; Brush <span class="logo-by">by Sanaa</span></span></a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#tees">Painted Tees</a></li>
+      <li><a href="#flowers">Fresh Blooms</a></li>
+      <li><a href="#process">How It's Made</a></li>
+      <li><a href="#story">Our Story</a></li>
+      <li><a href="#contact">Custom Orders</a></li>
+    </ul>
+    <div class="nav-cta">
+      <button class="btn" type="button" onclick="document.getElementById('shopgrid').scrollIntoView({behavior:'smooth'})"><span>Shop the drop</span> →</button>
+      <a class="cart-link" id="cartLink" href="#cart" aria-label="Open shopping cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L20 7H6"/><circle cx="10" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>
+        <span class="cart-count" id="cartCount" aria-hidden="true">0</span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+      </button>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <span class="eyebrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+          made by Sanaa · new season, wet paint
+        </span>
+        <h1 class="kinetic-title"><span>Sanaa makes</span> <span>wearable art</span> <span>&amp; things that <em>grow.</em></span></h1>
+        <p class="lead">Every tee is painted by hand, every bouquet cut and tied to order. Bloom &amp; Brush is a one-woman studio making small batches of loud, joyful things — no two exactly alike.</p>
+        <p class="maker-intro"><span>Designed, painted &amp; arranged by</span> <strong>Sanaa</strong></p>
+        <div class="hero-ctas">
+          <button class="btn" type="button" onclick="document.getElementById('tees').scrollIntoView({behavior:'smooth'})">Shop painted tees</button>
+          <button class="btn btn-outline" type="button" onclick="document.getElementById('flowers').scrollIntoView({behavior:'smooth'})">Shop fresh blooms</button>
+        </div>
+        <div class="hero-stats">
+          <div><strong>250+</strong><span>tees hand-painted</span></div>
+          <div><strong>1–2</strong><span>days, cut to order</span></div>
+          <div><strong>100%</strong><span>made by one pair of hands</span></div>
+        </div>
+      </div>
+      <div class="hero-art" id="heroArt">
+        <div class="hero-stage">
+          <div class="hero-photo">
+            <img class="main-shot" loading="lazy" alt="A colourful mixed bouquet of pink, white and orange flowers arranged on a table"
+                 src="https://images.unsplash.com/photo-1564070815164-7ae2f49e5307?w=1000&q=80&auto=format&fit=crop">
+            <img class="accent-shot" loading="lazy" alt="Close-up of a colourful hand-painted tie-dye texture in pink, orange and blue"
+                 src="https://images.unsplash.com/photo-1723743640863-4984aa9d78b7?w=400&q=80&auto=format&fit=crop">
+            <div class="paint-dot" style="background:var(--marigold);"></div>
+          </div>
+          <div class="maker-seal" aria-label="Handmade by Sanaa">
+            <span class="flower-mark" aria-hidden="true">✿</span>
+            handmade by
+            <strong>Sanaa</strong>
+          </div>
+          <span class="float-petal petal-one" aria-hidden="true"></span>
+          <span class="float-petal petal-two" aria-hidden="true"></span>
+          <span class="float-petal petal-three" aria-hidden="true"></span>
+          <span class="floating-brush" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORY TILES -->
+  <section id="shopgrid">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="tag">pick your medium</span>
+          <h2>Two studios, one obsession with colour</h2>
+        </div>
+        <p>Start with a tee, a bouquet, or let us paint something just for you.</p>
+      </div>
+      <div class="palette">
+        <div class="tube">
+          <div class="dab" style="background:var(--poppy);"></div>
+          <h3>Hand-Painted Tees</h3>
+          <p>100% cotton tees, each one painted freehand — florals, faces, abstracts. No print, no repeats.</p>
+          <a href="#tees">Browse tees <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        <div class="tube">
+          <div class="dab" style="background:var(--blossom);"></div>
+          <h3>Fresh &amp; Dried Blooms</h3>
+          <p>Seasonal bunches, dried everlastings, and made-to-order bouquets wrapped by hand.</p>
+          <a href="#flowers">Browse flowers <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        <div class="tube">
+          <div class="dab" style="background:var(--cobalt);"></div>
+          <h3>Custom Commissions</h3>
+          <p>Send a photo, a name, or a vibe — get a one-off painted piece made just for you.</p>
+          <a href="#contact">Start a commission <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAINTED TEES GRID -->
+  <section id="tees">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="tag">fresh off the easel</span>
+          <h2>Best-selling painted tees</h2>
+        </div>
+        <a href="#" class="btn btn-outline">View all tees</a>
+      </div>
+      <div class="grid">
+
+        <article class="card">
+          <div class="card-canvas photo tint-poppy" style="background-image:url('https://images.unsplash.com/photo-1620799139507-2a76f79a2f4d?w=700&q=80&auto=format&fit=crop');">
+            <span class="card-badge">Bestseller</span>
+          </div>
+          <div class="card-body">
+            <h3>Sunburst Poppy Tee</h3>
+            <div class="card-meta">
+              <span class="price">₹899</span>
+              <button class="addbtn" aria-label="Add Sunburst Poppy Tee to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-cobalt" style="background-image:url('https://images.unsplash.com/photo-1723743640863-4984aa9d78b7?w=700&q=80&auto=format&fit=crop');">
+          </div>
+          <div class="card-body">
+            <h3>Cobalt Wave Tee</h3>
+            <div class="card-meta">
+              <span class="price">₹949</span>
+              <button class="addbtn" aria-label="Add Cobalt Wave Tee to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-marigold" style="background-image:url('https://images.unsplash.com/photo-1620799139507-2a76f79a2f4d?w=700&q=80&auto=format&fit=crop&flip=h');">
+            <span class="card-badge">New</span>
+          </div>
+          <div class="card-body">
+            <h3>Marigold Halo Tee</h3>
+            <div class="card-meta">
+              <span class="price">₹899</span>
+              <button class="addbtn" aria-label="Add Marigold Halo Tee to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-leaf" style="background-image:url('https://images.unsplash.com/photo-1758522276889-ec31a6fa3492?w=700&q=80&auto=format&fit=crop');">
+          </div>
+          <div class="card-body">
+            <h3>Contour Line Tee</h3>
+            <div class="card-meta">
+              <span class="price">₹849</span>
+              <button class="addbtn" aria-label="Add Contour Line Tee to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOWERS GRID -->
+  <section id="flowers" style="background:var(--canvas-dim);">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="tag">cut this morning</span>
+          <h2>Fresh &amp; dried bouquets</h2>
+        </div>
+        <a href="#" class="btn btn-outline">View all flowers</a>
+      </div>
+      <div class="grid">
+
+        <article class="card">
+          <div class="card-canvas photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1564070815164-7ae2f49e5307?w=700&q=80&auto=format&fit=crop');">
+            <span class="card-badge">Limited</span>
+          </div>
+          <div class="card-body">
+            <h3>Sunset Garden Bunch</h3>
+            <div class="card-meta">
+              <span class="price">₹649</span>
+              <button class="addbtn" aria-label="Add Sunset Garden Bunch to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1646204136595-30845caf3e41?w=700&q=80&auto=format&fit=crop');">
+          </div>
+          <div class="card-body">
+            <h3>Everlasting Dried Mix</h3>
+            <div class="card-meta">
+              <span class="price">₹749</span>
+              <button class="addbtn" aria-label="Add Everlasting Dried Mix to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-cobalt" style="background-image:url('https://images.unsplash.com/photo-1742751577995-c43de6f64ba1?w=700&q=80&auto=format&fit=crop');">
+          </div>
+          <div class="card-body">
+            <h3>Cornflower &amp; Cotton</h3>
+            <div class="card-meta">
+              <span class="price">₹699</span>
+              <button class="addbtn" aria-label="Add Cornflower and Cotton to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-canvas photo tint-poppy" style="background-image:url('https://images.unsplash.com/photo-1742751577995-c43de6f64ba1?w=700&q=80&auto=format&fit=crop&flip=h');">
+            <span class="card-badge">New</span>
+          </div>
+          <div class="card-body">
+            <h3>Poppy Trio Posy</h3>
+            <div class="card-meta">
+              <span class="price">₹599</span>
+              <button class="addbtn" aria-label="Add Poppy Trio Posy to cart"><span>Add to cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESS -->
+  <section id="process">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="tag">how it gets to you</span>
+          <h2>From sketch to your doorstep</h2>
+        </div>
+      </div>
+      <div class="process">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>You order</h3>
+          <p>Pick a ready piece or send details for a custom tee, bouquet, or commission.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>She paints or picks</h3>
+          <p>Every tee is painted freehand; every bouquet is cut and arranged the same day.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>It ships to you</h3>
+          <p>Wrapped by hand and out the door within 1–2 days, with a note card inside.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STORY -->
+  <section id="story" style="background:var(--canvas-dim);">
+    <div class="wrap">
+      <div class="story">
+        <div class="story-art photo tint-blossom blob" style="background-image:url('https://images.unsplash.com/photo-1758522276889-ec31a6fa3492?w=800&q=80&auto=format&fit=crop');" role="img" aria-label="Close-up of an artist's paint palette covered in colourful blobs of paint"></div>
+        <div class="story-copy">
+          <span class="tag">the studio</span>
+          <h2>Meet Sanaa — one brush, one pair of scissors, a lot of colour</h2>
+          <p>Sanaa started Bloom &amp; Brush on a kitchen table with a stack of plain tees and a bunch of leftover market flowers. It's still that personal — every order is painted, cut, or wrapped by her hand, in small batches, so nothing ever looks quite like anything else.</p>
+          <p>No factories, no printers. Just a table full of paint tubes and buckets of whatever's in season this week.</p>
+          <div class="story-quote">"If it doesn't make me want to keep it for myself, it doesn't leave the studio."</div>
+          <div class="signature-line">
+            <span class="sig">— Sanaa</span>
+            <span class="role">artist &amp; founder, Bloom &amp; Brush</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GALLERY STRIP -->
+  <section class="gallery-strip">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="tag">studio floor</span>
+          <h2>Work in progress</h2>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="gallery-scroll">
+        <div class="gcard photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1758522276889-ec31a6fa3492?w=500&q=80&auto=format&fit=crop');" role="img" aria-label="Paint palette with colourful blobs of paint"></div>
+        <div class="gcard photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1723743640863-4984aa9d78b7?w=500&q=80&auto=format&fit=crop');" role="img" aria-label="Colourful tie-dye texture in pink, orange and blue"></div>
+        <div class="gcard photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1745176593885-c1d466a6dff5?w=500&q=80&auto=format&fit=crop');" role="img" aria-label="Painterly still life of flowers in warm tones"></div>
+        <div class="gcard photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1646204136595-30845caf3e41?w=500&q=80&auto=format&fit=crop');" role="img" aria-label="Bunch of dried flowers hanging"></div>
+        <div class="gcard photo tint-none" style="background-image:url('https://images.unsplash.com/photo-1742751577995-c43de6f64ba1?w=500&q=80&auto=format&fit=crop');" role="img" aria-label="Bouquet of tulips wrapped in brown paper"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA / NEWSLETTER -->
+  <section id="contact">
+    <div class="wrap">
+      <div class="cta-band">
+        <div>
+          <h2>Want something painted just for you?</h2>
+          <p>Send a photo, a colour mood, or three words that describe the person it's for — get first dibs on new drops and one-off pieces.</p>
+        </div>
+        <div>
+          <form class="cta-form" onsubmit="event.preventDefault(); this.querySelector('input').value=''; alert('Thanks — you\'re on the list!');">
+            <label class="visually-hidden" for="email">Email address</label>
+            <input id="email" type="email" required placeholder="you@example.com">
+            <button class="btn" type="submit">Notify me</button>
+          </form>
+          <p class="form-note">No spam — just new drops and studio updates.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="shopFooter">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#top" class="logo" style="font-size:1.7rem;">Bloom &amp; Brush <span class="logo-by">by Sanaa</span></a>
+        <p>Hand-painted tees and hand-tied bouquets, made in small batches by Sanaa.</p>
+      </div>
+      <div>
+        <h4>Shop</h4>
+        <ul>
+          <li><a href="#tees">Painted tees</a></li>
+          <li><a href="#flowers">Fresh &amp; dried blooms</a></li>
+          <li><a href="#contact">Custom commissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Studio</h4>
+        <ul>
+          <li><a href="#story">Our story</a></li>
+          <li><a href="#process">How it's made</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Help</h4>
+        <ul>
+          <li><a href="#">Shipping &amp; returns</a></li>
+          <li><a href="#">Care instructions</a></li>
+          <li><a href="#">FAQs</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Bloom &amp; Brush by Sanaa. Made by hand, every time.</span>
+      <div class="socials">
+        <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+        <a href="#" aria-label="Pinterest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 17c1-3 2-6 2-8a2 2 0 1 1 4 0c0 1.5-1 4-1 5.5a1.5 1.5 0 0 0 3 0"/></svg></a>
+        <a href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- FULL CART PAGE — still inside this single HTML file -->
+<section class="one-file-page" id="cartPage" hidden aria-labelledby="cartPageTitle">
+  <div class="wrap">
+    <a class="subpage-back" href="#tees">← Continue shopping</a>
+    <div class="subpage-head">
+      <div><span class="tag">your hand-picked pieces</span><h1 id="cartPageTitle">Your cart</h1></div>
+      <p>Adjust quantities, remove a piece, or continue to the checkout page—all without leaving this HTML file.</p>
+    </div>
+    <div class="one-cart-layout">
+      <div>
+        <div class="one-cart-list" id="oneCartList"></div>
+        <div class="one-empty" id="oneCartEmpty"><div><span class="one-empty-flower">✿</span><h2>Your cart is waiting for colour</h2><p>Choose a painted tee or a fresh bouquet and it will appear here.</p><a class="one-shop-btn" href="#tees">Explore the collection →</a></div></div>
+      </div>
+      <aside class="one-summary" aria-label="Order summary">
+        <h2>Order summary</h2>
+        <div class="one-summary-row"><span>Items</span><strong id="oneCartItemCount">0</strong></div>
+        <div class="one-summary-row"><span>Subtotal</span><strong id="oneCartSubtotal">₹0</strong></div>
+        <div class="one-summary-row"><span>Delivery</span><strong id="oneCartDelivery">₹0</strong></div>
+        <div class="one-summary-total"><span>Total</span><strong id="oneCartTotal">₹0</strong></div>
+        <p class="one-delivery-note" id="oneDeliveryNote">Free delivery above ₹999.</p>
+        <a class="one-checkout-btn disabled" id="oneCheckoutLink" href="#checkout">Continue to checkout →</a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- FULL CHECKOUT PAGE — also inside this single HTML file -->
+<section class="one-file-page" id="checkoutPage" hidden aria-labelledby="checkoutPageTitle">
+  <div class="wrap">
+    <a class="subpage-back" href="#cart">← Return to cart</a>
+    <div class="subpage-head">
+      <div><span class="tag">almost yours</span><h1 id="checkoutPageTitle">Checkout</h1></div>
+      <p>Enter delivery details, review the order, and prepare the request for Sanaa.</p>
+    </div>
+    <div class="one-checkout-steps" aria-label="Checkout progress">
+      <div class="one-step"><span class="one-step-dot">✓</span><span>Cart</span></div><span class="one-step-line"></span>
+      <div class="one-step active"><span class="one-step-dot">2</span><span>Details</span></div><span class="one-step-line"></span>
+      <div class="one-step"><span class="one-step-dot">3</span><span>Confirm</span></div>
+    </div>
+    <div class="one-checkout-empty" id="oneCheckoutEmpty"><span>✿</span><h2>Your cart is empty</h2><p>Add something colourful before checking out.</p><a class="one-shop-btn" href="#tees">Go shopping →</a></div>
+    <div class="one-checkout-layout" id="oneCheckoutLayout">
+      <form class="one-form-card" id="oneCheckoutForm">
+        <h2>Delivery details</h2><p class="one-form-note">Fields marked with * are required.</p>
+        <div class="one-form-grid">
+          <div class="one-field"><label for="oneFirstName">First name *</label><input id="oneFirstName" name="firstName" autocomplete="given-name" required placeholder="First name"></div>
+          <div class="one-field"><label for="oneLastName">Last name *</label><input id="oneLastName" name="lastName" autocomplete="family-name" required placeholder="Last name"></div>
+          <div class="one-field"><label for="oneEmail">Email *</label><input id="oneEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+          <div class="one-field"><label for="onePhone">Phone *</label><input id="onePhone" name="phone" type="tel" autocomplete="tel" required placeholder="+91 00000 00000"></div>
+          <div class="one-field full"><label for="oneAddress">Address *</label><textarea id="oneAddress" name="address" autocomplete="street-address" required placeholder="House, street and area"></textarea></div>
+          <div class="one-field"><label for="oneCity">City *</label><input id="oneCity" name="city" autocomplete="address-level2" required placeholder="Pune"></div>
+          <div class="one-field"><label for="onePin">PIN code *</label><input id="onePin" name="pin" inputmode="numeric" pattern="[0-9]{6}" autocomplete="postal-code" required placeholder="411001"></div>
+        </div>
+        <h2 class="one-payment-title">Payment preference</h2><p class="one-form-note">Payment integration can be connected before launch.</p>
+        <div class="one-payment-options">
+          <label class="one-payment"><input type="radio" name="payment" value="upi" checked><strong>UPI on confirmation</strong><span>Receive details after confirmation</span></label>
+          <label class="one-payment"><input type="radio" name="payment" value="cod"><strong>Pay on delivery</strong><span>Where available</span></label>
+        </div>
+      </form>
+      <aside class="one-order-card">
+        <h2>Your pieces</h2><div class="one-order-list" id="oneOrderList"></div>
+        <div class="one-price-row"><span>Subtotal</span><b id="oneCheckoutSubtotal">₹0</b></div>
+        <div class="one-price-row"><span>Delivery</span><b id="oneCheckoutDelivery">₹0</b></div>
+        <div class="one-price-total"><span>Total</span><strong id="oneCheckoutTotal">₹0</strong></div>
+        <button class="one-place-order" id="onePlaceOrder" type="submit" form="oneCheckoutForm">Prepare order request →</button>
+        <p class="one-prototype-note">Prototype checkout: connect a backend and payment provider before accepting real orders.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<div class="one-success" id="oneSuccess" role="dialog" aria-modal="true" aria-labelledby="oneSuccessTitle">
+  <div class="one-success-card" id="oneSuccessCard"><div class="one-success-mark">✓</div><h2 id="oneSuccessTitle">Order request prepared</h2><p>The request is saved on this device. Connect the live order backend before using checkout with customers.</p><span class="one-order-ref" id="oneOrderRef"></span><br><a href="#top" id="oneSuccessBack">Back to the studio →</a></div>
+</div>
+
+<div class="cart-toast" id="cartToast" role="status" aria-live="polite">
+  <span class="toast-check" aria-hidden="true">✓</span>
+  <strong id="cartToastText">Added to your cart</strong>
+  <a href="#cart">View cart →</a>
+</div>
+
+<script>
+  const menuToggle = document.getElementById('menuToggle');
+  const navLinks = document.getElementById('navLinks');
+  menuToggle.addEventListener('click', () => {
+    const isOpen = navLinks.classList.toggle('open');
+    menuToggle.setAttribute('aria-expanded', isOpen);
+  });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    navLinks.classList.remove('open');
+    menuToggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Layered 3D movement for Sanaa's hero artwork.
+  const heroArt = document.getElementById('heroArt');
+  if (heroArt && !reducedMotion && window.matchMedia('(pointer: fine)').matches) {
+    heroArt.addEventListener('pointermove', (event) => {
+      const rect = heroArt.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width - 0.5;
+      const y = (event.clientY - rect.top) / rect.height - 0.5;
+      heroArt.style.setProperty('--hero-rx', `${(-y * 10).toFixed(2)}deg`);
+      heroArt.style.setProperty('--hero-ry', `${(x * 12).toFixed(2)}deg`);
+    });
+    heroArt.addEventListener('pointerleave', () => {
+      heroArt.style.setProperty('--hero-rx', '0deg');
+      heroArt.style.setProperty('--hero-ry', '0deg');
+    });
+  }
+
+  // Subtle 3D tilt for product and category cards.
+  if (!reducedMotion && window.matchMedia('(pointer: fine)').matches) {
+    document.querySelectorAll('.card, .tube, .gcard').forEach((surface) => {
+      surface.classList.add('tilt-card');
+      surface.addEventListener('pointermove', (event) => {
+        const rect = surface.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width - 0.5;
+        const y = (event.clientY - rect.top) / rect.height - 0.5;
+        surface.style.setProperty('--card-rx', `${(-y * 7).toFixed(2)}deg`);
+        surface.style.setProperty('--card-ry', `${(x * 8).toFixed(2)}deg`);
+      });
+      surface.addEventListener('pointerleave', () => {
+        surface.style.setProperty('--card-rx', '0deg');
+        surface.style.setProperty('--card-ry', '0deg');
+      });
+    });
+  }
+
+  // Staggered reveal as each piece enters the page.
+  if (!reducedMotion && 'IntersectionObserver' in window) {
+    const revealItems = document.querySelectorAll('.section-head, .tube, .card, .step, .story-art, .story-copy, .gcard, .cta-band');
+    revealItems.forEach((item, index) => {
+      item.classList.add('reveal-ready');
+      item.style.setProperty('--reveal-delay', `${(index % 4) * 75}ms`);
+    });
+    const revealObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -35px' });
+    revealItems.forEach(item => revealObserver.observe(item));
+  }
+
+  // Colour progress line along the top of the page.
+  const scrollProgress = document.getElementById('scrollProgress');
+  let scrollFramePending = false;
+  const updateScrollProgress = () => {
+    const distance = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = distance > 0 ? Math.min(100, Math.max(0, (window.scrollY / distance) * 100)) : 0;
+    scrollProgress.style.setProperty('--scroll-progress', `${progress}%`);
+    scrollFramePending = false;
+  };
+  window.addEventListener('scroll', () => {
+    if (!scrollFramePending) {
+      scrollFramePending = true;
+      requestAnimationFrame(updateScrollProgress);
+    }
+  }, { passive:true });
+  updateScrollProgress();
+
+  if (!reducedMotion && window.matchMedia('(pointer: fine)').matches) {
+    // Magnetic buttons gently follow the pointer.
+    document.querySelectorAll('.btn').forEach((button) => {
+      button.addEventListener('pointermove', (event) => {
+        const rect = button.getBoundingClientRect();
+        const x = (event.clientX - rect.left - rect.width / 2) * .13;
+        const y = (event.clientY - rect.top - rect.height / 2) * .16;
+        button.style.setProperty('--mag-x', `${x.toFixed(1)}px`);
+        button.style.setProperty('--mag-y', `${y.toFixed(1)}px`);
+      });
+      button.addEventListener('pointerleave', () => {
+        button.style.setProperty('--mag-x', '0px');
+        button.style.setProperty('--mag-y', '0px');
+      });
+    });
+
+    // Tiny paint flecks trail the cursor without blocking clicks.
+    const sparkColours = ['#E63B2E','#F5A623','#E85D9E','#2857A6','#4C7A3A'];
+    let lastSparkAt = 0;
+    document.addEventListener('pointermove', (event) => {
+      const now = performance.now();
+      if (now - lastSparkAt < 55) return;
+      lastSparkAt = now;
+      const spark = document.createElement('span');
+      spark.className = 'paint-spark';
+      spark.style.left = `${event.clientX}px`;
+      spark.style.top = `${event.clientY}px`;
+      spark.style.background = sparkColours[Math.floor(Math.random() * sparkColours.length)];
+      spark.style.setProperty('--spark-size', `${7 + Math.random() * 8}px`);
+      spark.style.setProperty('--spark-x', `${-18 + Math.random() * 36}px`);
+      spark.style.setProperty('--spark-y', `${-10 - Math.random() * 30}px`);
+      document.body.appendChild(spark);
+      spark.addEventListener('animationend', () => spark.remove(), { once:true });
+    }, { passive:true });
+  }
+
+  // Persistent cart shared by the shop, cart page, and checkout page.
+  const CART_KEY = 'bloomBrushCartV1';
+  const cartLink = document.getElementById('cartLink');
+  const cartCount = document.getElementById('cartCount');
+  const cartToast = document.getElementById('cartToast');
+  const cartToastText = document.getElementById('cartToastText');
+  let toastTimer;
+
+  const readCart = () => {
+    try {
+      const saved = localStorage.getItem(CART_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (error) {}
+    try {
+      if (window.name.startsWith(`${CART_KEY}:`)) {
+        const parsed = JSON.parse(window.name.slice(CART_KEY.length + 1));
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (error) {}
+    return [];
+  };
+
+  const saveCart = (cart) => {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (error) {}
+    try { window.name = `${CART_KEY}:${JSON.stringify(cart)}`; } catch (error) {}
+  };
+
+  const updateCartCount = () => {
+    const count = readCart().reduce((total, item) => total + item.qty, 0);
+    cartCount.textContent = count > 99 ? '99+' : count;
+    cartCount.classList.toggle('visible', count > 0);
+    cartLink.setAttribute('aria-label', `Open shopping cart with ${count} item${count === 1 ? '' : 's'}`);
+  };
+
+  const productFromCard = (card) => {
+    const name = card.querySelector('h3').textContent.trim();
+    const priceText = card.querySelector('.price').textContent.replace(/[^0-9]/g, '');
+    const canvas = card.querySelector('.card-canvas');
+    const background = getComputedStyle(canvas).backgroundImage;
+    const match = background.match(/url\(["']?(.*?)["']?\)/);
+    return {
+      id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      name,
+      price: Number(priceText),
+      image: match ? match[1] : '',
+      category: card.closest('section')?.id === 'flowers' ? 'Fresh Blooms' : 'Painted Tee',
+      qty: 1
+    };
+  };
+
+  const flyProductToCart = (card) => {
+    if (reducedMotion || !cartLink || !card.animate) return;
+    const source = card.querySelector('.card-canvas');
+    const sourceRect = source.getBoundingClientRect();
+    const targetRect = cartLink.getBoundingClientRect();
+    const flyer = document.createElement('span');
+    flyer.className = 'flying-product';
+    flyer.style.left = `${sourceRect.left}px`;
+    flyer.style.top = `${sourceRect.top}px`;
+    flyer.style.width = `${Math.min(sourceRect.width, 120)}px`;
+    flyer.style.height = `${Math.min(sourceRect.height, 140)}px`;
+    flyer.style.backgroundImage = getComputedStyle(source).backgroundImage;
+    document.body.appendChild(flyer);
+    const endX = targetRect.left + targetRect.width / 2 - sourceRect.left - 28;
+    const endY = targetRect.top + targetRect.height / 2 - sourceRect.top - 28;
+    flyer.animate([
+      { transform:'translate(0,0) scale(1) rotate(0)', opacity:1 },
+      { transform:`translate(${endX * .45}px,${endY * .25 - 70}px) scale(.72) rotate(7deg)`, opacity:.92, offset:.45 },
+      { transform:`translate(${endX}px,${endY}px) scale(.12) rotate(18deg)`, opacity:.1 }
+    ], { duration:720, easing:'cubic-bezier(.2,.72,.18,1)' }).finished.finally(() => flyer.remove());
+  };
+
+  const showCartToast = (name) => {
+    cartToastText.textContent = `${name} added`;
+    cartToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => cartToast.classList.remove('show'), 2600);
+  };
+
+  document.querySelectorAll('.card .addbtn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('.card');
+      const product = productFromCard(card);
+      const cart = readCart();
+      const existing = cart.find(item => item.id === product.id);
+      if (existing) existing.qty += 1;
+      else cart.push(product);
+      saveCart(cart);
+      updateCartCount();
+      flyProductToCart(card);
+      const buttonLabel = button.querySelector('span');
+      if (buttonLabel) buttonLabel.textContent = 'Added!';
+      button.classList.add('added');
+      cartLink.classList.remove('bump');
+      requestAnimationFrame(() => cartLink.classList.add('bump'));
+      setTimeout(() => {
+        button.classList.remove('added');
+        if (buttonLabel) buttonLabel.textContent = 'Add to cart';
+      }, 850);
+      setTimeout(() => cartLink.classList.remove('bump'), 650);
+      showCartToast(product.name);
+    });
+  });
+
+  updateCartCount();
+
+  // Full-page cart and checkout router — all contained in this one file.
+  const formatMoney = value => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(value);
+  const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
+  const safeImage = value => /^https:\/\/images\.unsplash\.com\//.test(value || '') ? value.replace(/["'\\]/g,'') : '';
+  const shopView = document.getElementById('top');
+  const shopFooter = document.getElementById('shopFooter');
+  const cartPage = document.getElementById('cartPage');
+  const checkoutPage = document.getElementById('checkoutPage');
+  const oneCartList = document.getElementById('oneCartList');
+  const oneCartEmpty = document.getElementById('oneCartEmpty');
+  const oneCheckoutLink = document.getElementById('oneCheckoutLink');
+  const oneCheckoutLayout = document.getElementById('oneCheckoutLayout');
+  const oneCheckoutEmpty = document.getElementById('oneCheckoutEmpty');
+  const oneOrderList = document.getElementById('oneOrderList');
+  const onePlaceOrder = document.getElementById('onePlaceOrder');
+
+  const cartTotals = cart => {
+    const count = cart.reduce((sum,item) => sum + Number(item.qty || 0),0);
+    const subtotal = cart.reduce((sum,item) => sum + Number(item.price || 0) * Number(item.qty || 0),0);
+    const delivery = !cart.length || subtotal >= 999 ? 0 : 99;
+    return { count, subtotal, delivery, total:subtotal + delivery };
+  };
+
+  const renderOneFileCart = () => {
+    const cart = readCart().filter(item => item && item.id && Number(item.qty) > 0);
+    saveCart(cart);
+    oneCartList.innerHTML = '';
+    oneCartEmpty.classList.toggle('show',cart.length === 0);
+    cart.forEach((item,index) => {
+      const article = document.createElement('article');
+      article.className = 'one-cart-item';
+      article.dataset.id = item.id;
+      article.style.setProperty('--item-delay',`${index * 65}ms`);
+      article.innerHTML = `
+        <div class="one-cart-image" role="img" aria-label="${escapeHTML(item.name)}"></div>
+        <div class="one-cart-copy">
+          <p class="one-cart-category">${escapeHTML(item.category || 'Handmade')}</p>
+          <h2>${escapeHTML(item.name)}</h2>
+          <span class="one-unit-price">${formatMoney(Number(item.price) || 0)} each</span>
+          <div class="one-item-actions">
+            <div class="one-quantity" aria-label="Quantity controls">
+              <button class="one-qty-btn" type="button" data-one-action="decrease" aria-label="Decrease quantity">−</button>
+              <span class="one-qty-value" aria-live="polite">${Number(item.qty) || 1}</span>
+              <button class="one-qty-btn" type="button" data-one-action="increase" aria-label="Increase quantity">+</button>
+            </div>
+            <button class="one-remove" type="button" data-one-action="remove">Remove</button>
+          </div>
+        </div>
+        <strong class="one-line-price">${formatMoney((Number(item.price) || 0) * (Number(item.qty) || 1))}</strong>`;
+      const image = safeImage(item.image);
+      article.querySelector('.one-cart-image').style.backgroundImage = image ? `url("${image}")` : 'linear-gradient(135deg,#F5A623,#E85D9E)';
+      oneCartList.appendChild(article);
+    });
+    const totals = cartTotals(cart);
+    document.getElementById('oneCartItemCount').textContent = `${totals.count} item${totals.count === 1 ? '' : 's'}`;
+    document.getElementById('oneCartSubtotal').textContent = formatMoney(totals.subtotal);
+    document.getElementById('oneCartDelivery').textContent = totals.delivery ? formatMoney(totals.delivery) : (cart.length ? 'Free' : formatMoney(0));
+    document.getElementById('oneCartTotal').textContent = formatMoney(totals.total);
+    document.getElementById('oneDeliveryNote').textContent = totals.subtotal >= 999 ? 'You unlocked free delivery.' : `Add ${formatMoney(Math.max(0,999 - totals.subtotal))} more for free delivery.`;
+    oneCheckoutLink.classList.toggle('disabled',cart.length === 0);
+    oneCheckoutLink.setAttribute('aria-disabled',String(cart.length === 0));
+    updateCartCount();
+  };
+
+  oneCartList.addEventListener('click',event => {
+    const button = event.target.closest('[data-one-action]');
+    if (!button) return;
+    const article = button.closest('.one-cart-item');
+    const cart = readCart();
+    const item = cart.find(product => product.id === article.dataset.id);
+    if (!item) return;
+    const action = button.dataset.oneAction;
+    if (action === 'remove') {
+      article.classList.add('removing');
+      setTimeout(() => {
+        saveCart(cart.filter(product => product.id !== item.id));
+        renderOneFileCart();
+      },reducedMotion ? 0 : 330);
+      return;
+    }
+    if (action === 'increase') item.qty = Number(item.qty) + 1;
+    if (action === 'decrease') item.qty = Math.max(1,Number(item.qty) - 1);
+    saveCart(cart);
+    const value = article.querySelector('.one-qty-value');
+    value.classList.add('pop');
+    setTimeout(renderOneFileCart,reducedMotion ? 0 : 190);
+  });
+
+  const renderOneFileCheckout = () => {
+    const cart = readCart().filter(item => item && item.id && Number(item.qty) > 0);
+    oneCheckoutLayout.style.display = cart.length ? 'grid' : 'none';
+    oneCheckoutEmpty.classList.toggle('show',!cart.length);
+    oneOrderList.innerHTML = '';
+    cart.forEach((item,index) => {
+      const row = document.createElement('div');
+      row.className = 'one-order-item';
+      row.style.setProperty('--order-delay',`${index * 60}ms`);
+      row.innerHTML = `<div class="one-order-thumb"></div><div class="one-order-copy"><strong>${escapeHTML(item.name)}</strong><span>Qty ${Number(item.qty) || 1}</span></div><span class="one-order-price">${formatMoney((Number(item.price) || 0) * (Number(item.qty) || 1))}</span>`;
+      const image = safeImage(item.image);
+      row.querySelector('.one-order-thumb').style.backgroundImage = image ? `url("${image}")` : 'linear-gradient(135deg,#F5A623,#E85D9E)';
+      oneOrderList.appendChild(row);
+    });
+    const totals = cartTotals(cart);
+    document.getElementById('oneCheckoutSubtotal').textContent = formatMoney(totals.subtotal);
+    document.getElementById('oneCheckoutDelivery').textContent = totals.delivery ? formatMoney(totals.delivery) : 'Free';
+    document.getElementById('oneCheckoutTotal').textContent = formatMoney(totals.total);
+    onePlaceOrder.disabled = !cart.length;
+  };
+
+  const createOneFileConfetti = () => {
+    const card = document.getElementById('oneSuccessCard');
+    card.querySelectorAll('.one-confetti').forEach(piece => piece.remove());
+    const colours = ['#E63B2E','#F5A623','#4C7A3A','#2857A6','#E85D9E'];
+    for (let index = 0; index < 24; index += 1) {
+      const piece = document.createElement('span');
+      piece.className = 'one-confetti';
+      piece.style.setProperty('--confetti-x',`${Math.random() * 100}%`);
+      piece.style.setProperty('--confetti-color',colours[index % colours.length]);
+      piece.style.setProperty('--confetti-delay',`${Math.random() * .5}s`);
+      piece.style.setProperty('--confetti-drift',`${-80 + Math.random() * 160}px`);
+      card.appendChild(piece);
+    }
+  };
+
+  document.getElementById('oneCheckoutForm').addEventListener('submit',event => {
+    event.preventDefault();
+    const cart = readCart();
+    if (!cart.length || !event.currentTarget.reportValidity()) return;
+    const totals = cartTotals(cart);
+    const orderId = `BB-${Date.now().toString().slice(-7)}`;
+    const order = { id:orderId, createdAt:new Date().toISOString(), details:Object.fromEntries(new FormData(event.currentTarget).entries()), items:cart, total:totals.total, status:'prototype' };
+    onePlaceOrder.disabled = true;
+    onePlaceOrder.textContent = 'Preparing your order…';
+    try {
+      const orders = JSON.parse(localStorage.getItem('bloomBrushOrdersV1') || '[]');
+      orders.push(order);
+      localStorage.setItem('bloomBrushOrdersV1',JSON.stringify(orders));
+    } catch (error) {}
+    setTimeout(() => {
+      saveCart([]);
+      updateCartCount();
+      document.getElementById('oneOrderRef').textContent = `Reference ${orderId}`;
+      document.getElementById('oneSuccess').classList.add('show');
+      createOneFileConfetti();
+      onePlaceOrder.textContent = 'Prepare order request →';
+    },reducedMotion ? 0 : 650);
+  });
+
+  document.getElementById('oneSuccessBack').addEventListener('click',() => {
+    document.getElementById('oneSuccess').classList.remove('show');
+  });
+
+  const showOneFileRoute = () => {
+    const route = location.hash.slice(1);
+    const showCart = route === 'cart';
+    const showCheckout = route === 'checkout';
+    const showShop = !showCart && !showCheckout;
+    shopView.hidden = !showShop;
+    shopFooter.hidden = !showShop;
+    cartPage.hidden = !showCart;
+    checkoutPage.hidden = !showCheckout;
+    if (showCart) {
+      document.title = 'Your Cart — Bloom & Brush by Sanaa';
+      renderOneFileCart();
+      window.scrollTo({top:0,behavior:reducedMotion ? 'auto' : 'smooth'});
+    } else if (showCheckout) {
+      document.title = 'Checkout — Bloom & Brush by Sanaa';
+      renderOneFileCheckout();
+      window.scrollTo({top:0,behavior:reducedMotion ? 'auto' : 'smooth'});
+    } else {
+      document.title = 'Bloom & Brush by Sanaa — Hand-Painted Tees & Fresh Blooms';
+      if (route) requestAnimationFrame(() => document.getElementById(route)?.scrollIntoView({behavior:'auto'}));
+    }
+  };
+
+  window.addEventListener('hashchange',showOneFileRoute);
+  showOneFileRoute();
+</script>
+
+</body>
+</html>
